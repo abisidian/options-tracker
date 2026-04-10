@@ -132,3 +132,4 @@ UI 基于 ui-ux-pro-max skill 的 **Data-Dense Dashboard** 模式与 **Financial
 - 36px 行高、sticky 表头、hover 高亮、骨架屏加载态、`cursor-pointer` 标记所有可点击元素
 - 对比度满足 WCAG AA，`prefers-reduced-motion` 被尊重
 - 数字列统一用 `font-mono tabular-nums` 防止抖动
+# options-tracker
