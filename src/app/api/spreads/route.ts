@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { fetchBtcOptionTickers } from "@/lib/bybit";
+import { buildSpreadsForExpiry } from "@/lib/spreads";
+import type { SpreadStrategy, SpreadsResponse } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  const expiryLabel = req.nextUrl.searchParams.get("expiry");
+  if (!expiryLabel) {
+    return NextResponse.json(
+      { error: "Missing required query param: expiry" },
+      { status: 400 },
+    );
+  }
+
+  const stratParam = req.nextUrl.searchParams.get("strategies");
+  const strategies: SpreadStrategy[] | undefined = stratParam
+    ? (stratParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(
+          (s): s is SpreadStrategy => s === "BearCall" || s === "BullPut",
+        ))
+    : undefined;
+
+  try {
+    const tickers = await fetchBtcOptionTickers();
+    const sample = tickers.find((t) => t.expiryLabel === expiryLabel);
+    if (!sample) {
+      return NextResponse.json(
+        { error: `Unknown expiry: ${expiryLabel}` },
+        { status: 404 },
+      );
+    }
+    const { combos, counts, underlyingPrice } = buildSpreadsForExpiry({
+      tickers,
+      expiryLabel,
+      strategies,
+    });
+
+    const daysToExpiry = Math.max(
+      0,
+      (sample.expiryMs - Date.now()) / (24 * 60 * 60 * 1000),
+    );
+
+    const payload: SpreadsResponse = {
+      fetchedAt: Date.now(),
+      underlyingPrice,
+      expiryLabel,
+      expiryMs: sample.expiryMs,
+      daysToExpiry,
+      counts,
+      combos,
+    };
+
+    return NextResponse.json(payload);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+}
