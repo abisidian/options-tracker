@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchBtcOptionTickers } from "@/lib/bybit";
+import { fetchOptionTickers } from "@/lib/bybit";
 import { buildSpreadsForExpiry } from "@/lib/spreads";
-import type { SpreadStrategy, SpreadsResponse } from "@/lib/types";
+import type { Coin, SpreadStrategy, SpreadsResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function parseCoin(req: NextRequest): Coin {
+  const v = req.nextUrl.searchParams.get("coin");
+  return v === "ETH" ? "ETH" : "BTC";
+}
 
 export async function GET(req: NextRequest) {
   const expiryLabel = req.nextUrl.searchParams.get("expiry");
@@ -14,6 +19,7 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
+  const coin = parseCoin(req);
 
   const stratParam = req.nextUrl.searchParams.get("strategies");
   const strategies: SpreadStrategy[] | undefined = stratParam
@@ -26,7 +32,7 @@ export async function GET(req: NextRequest) {
     : undefined;
 
   try {
-    const tickers = await fetchBtcOptionTickers();
+    const tickers = await fetchOptionTickers(coin);
     const sample = tickers.find((t) => t.expiryLabel === expiryLabel);
     if (!sample) {
       return NextResponse.json(
@@ -37,6 +43,7 @@ export async function GET(req: NextRequest) {
     const { combos, counts, underlyingPrice } = buildSpreadsForExpiry({
       tickers,
       expiryLabel,
+      coin,
       strategies,
     });
 
@@ -47,6 +54,7 @@ export async function GET(req: NextRequest) {
 
     const payload: SpreadsResponse = {
       fetchedAt: Date.now(),
+      coin,
       underlyingPrice,
       expiryLabel,
       expiryMs: sample.expiryMs,

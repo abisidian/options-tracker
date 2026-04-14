@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BtcPriceHeader } from "@/components/BtcPriceHeader";
+import { CoinSwitcher } from "@/components/CoinSwitcher";
 import { ExpiryPicker } from "@/components/ExpiryPicker";
 import { StrategyFilter } from "@/components/StrategyFilter";
 import { SpreadTable } from "@/components/SpreadTable";
 import { usePolling } from "@/hooks/usePolling";
 import { formatDays, formatRelative } from "@/lib/format";
 import type {
+  Coin,
   ExpiryInfo,
   SpreadStrategy,
   SpreadsResponse,
@@ -17,12 +19,13 @@ import type {
 const POLLING_INTERVAL_MS = 60_000;
 
 interface ExpiriesResponse {
+  coin: Coin;
   expiries: ExpiryInfo[];
   fetchedAt: number;
 }
 
-async function fetchExpiries(): Promise<ExpiriesResponse> {
-  const res = await fetch("/api/expiries", { cache: "no-store" });
+async function fetchExpiries(coin: Coin): Promise<ExpiriesResponse> {
+  const res = await fetch(`/api/expiries?coin=${coin}`, { cache: "no-store" });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -31,10 +34,12 @@ async function fetchExpiries(): Promise<ExpiriesResponse> {
 }
 
 async function fetchSpreads(
+  coin: Coin,
   expiry: string,
   strategies: SpreadStrategy[],
 ): Promise<SpreadsResponse> {
   const params = new URLSearchParams({
+    coin,
     expiry,
     strategies: strategies.join(","),
   });
@@ -49,13 +54,25 @@ async function fetchSpreads(
 }
 
 export default function HomePage() {
+  const [coin, setCoin] = useState<Coin>("BTC");
   const [expiry, setExpiry] = useState<string | null>(null);
   const [strategies, setStrategies] = useState<SpreadStrategy[]>([
     "BearCall",
     "BullPut",
   ]);
 
-  const expiriesState = usePolling(fetchExpiries, POLLING_INTERVAL_MS);
+  // 切换币种时，重置已选到期日，等新列表到来后再挑最近到期。
+  const handleCoinChange = (next: Coin) => {
+    if (next === coin) return;
+    setCoin(next);
+    setExpiry(null);
+  };
+
+  const expiriesState = usePolling(
+    () => fetchExpiries(coin),
+    POLLING_INTERVAL_MS,
+    [coin],
+  );
 
   // Default to the nearest future expiry once data arrives.
   useEffect(() => {
@@ -70,10 +87,10 @@ export default function HomePage() {
         // Placate the hook; it will ignore the null result.
         return null as unknown as SpreadsResponse;
       }
-      return fetchSpreads(expiry, strategies);
+      return fetchSpreads(coin, expiry, strategies);
     },
     POLLING_INTERVAL_MS,
-    [expiry, strategies.join(",")],
+    [coin, expiry, strategies.join(",")],
   );
 
   const spreads = spreadsState.data;
@@ -103,18 +120,19 @@ export default function HomePage() {
                 Options Tracker
               </h1>
               <p className="text-2xs text-fg-dim">
-                Bybit BTC 期权 · 10-Delta 信用价差扫描
+                Bybit {coin} 期权 · 10-Delta 信用价差扫描
               </p>
             </div>
           </div>
-          <div className="hidden items-center gap-2 text-2xs text-fg-dim sm:flex">
-            <span className="inline-flex items-center gap-1.5">
+          <div className="flex items-center gap-3 text-2xs text-fg-dim">
+            <CoinSwitcher value={coin} onChange={handleCoinChange} />
+            <span className="hidden items-center gap-1.5 sm:inline-flex">
               <span className="h-1.5 w-1.5 rounded-full bg-profit" aria-hidden />
               1 分钟轮询
             </span>
           </div>
         </div>
-        <BtcPriceHeader />
+        <BtcPriceHeader coin={coin} />
       </header>
 
       {/* Controls + summary */}

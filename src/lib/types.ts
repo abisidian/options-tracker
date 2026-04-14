@@ -1,5 +1,9 @@
 export type OptionType = "C" | "P";
 
+export type Coin = "BTC" | "ETH";
+
+export const COINS: Coin[] = ["BTC", "ETH"];
+
 export interface OptionTicker {
   symbol: string;
   baseCoin: string;
@@ -62,6 +66,7 @@ export interface SpreadCombo {
 
 export interface SpreadsResponse {
   fetchedAt: number;
+  coin: Coin;
   underlyingPrice: number;
   expiryLabel: string;
   expiryMs: number;

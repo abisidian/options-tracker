@@ -53,6 +53,7 @@ const tickers = [
 const { combos, counts } = buildSpreadsForExpiry({
   tickers,
   expiryLabel: EXPIRY_LABEL,
+  coin: "BTC",
 });
 
 console.log("counts:", counts);

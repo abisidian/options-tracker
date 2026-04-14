@@ -1,4 +1,4 @@
-import type { ExpiryInfo, OptionTicker, OptionType } from "./types";
+import type { Coin, ExpiryInfo, OptionTicker, OptionType } from "./types";
 
 const BYBIT_BASE = process.env.BYBIT_API_BASE || "https://api.bybit.com";
 const USER_AGENT =
@@ -81,19 +81,19 @@ async function bybitGet<T>(path: string): Promise<T> {
 }
 
 /**
- * Fetch the current BTC/USDT spot price from Bybit.
+ * Fetch the current {coin}/USDT spot price from Bybit.
  */
-export async function fetchBtcSpotPrice(): Promise<number> {
-  const cacheKey = "btc-spot";
+export async function fetchSpotPrice(coin: Coin): Promise<number> {
+  const cacheKey = `${coin}-spot`;
   const cached = getCached<number>(cacheKey);
   if (cached !== null) return cached;
 
   const result = await bybitGet<{
     list: Array<{ symbol: string; lastPrice: string }>;
-  }>("/v5/market/tickers?category=spot&symbol=BTCUSDT");
+  }>(`/v5/market/tickers?category=spot&symbol=${coin}USDT`);
   const price = Number(result.list?.[0]?.lastPrice ?? 0);
   if (!Number.isFinite(price) || price <= 0) {
-    throw new Error("Invalid BTC spot price from Bybit");
+    throw new Error(`Invalid ${coin} spot price from Bybit`);
   }
   setCached(cacheKey, price, 2_000);
   return price;
@@ -174,16 +174,17 @@ function parseBybitExpiry(label: string): number | null {
 }
 
 /**
- * Fetch all BTC option tickers from Bybit, parse, and return a normalized list.
- * Cached for 3s server-side to coalesce concurrent requests.
+ * Fetch all option tickers for the given base coin from Bybit, parse,
+ * and return a normalized list. Cached for 3s server-side to coalesce
+ * concurrent requests.
  */
-export async function fetchBtcOptionTickers(): Promise<OptionTicker[]> {
-  const cacheKey = "btc-options";
+export async function fetchOptionTickers(coin: Coin): Promise<OptionTicker[]> {
+  const cacheKey = `${coin}-options`;
   const cached = getCached<OptionTicker[]>(cacheKey);
   if (cached) return cached;
 
   const result = await bybitGet<{ list: RawOptionTicker[] }>(
-    "/v5/market/tickers?category=option&baseCoin=BTC",
+    `/v5/market/tickers?category=option&baseCoin=${coin}`,
   );
 
   const normalized: OptionTicker[] = [];

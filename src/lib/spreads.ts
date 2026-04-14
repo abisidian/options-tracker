@@ -1,4 +1,5 @@
 import type {
+  Coin,
   OptionTicker,
   OptionType,
   SpreadCombo,
@@ -6,11 +7,19 @@ import type {
 } from "./types";
 
 /**
- * Bybit BTC options contract size: 1 contract = 0.01 BTC of underlying.
- * markPrice is quoted in USD per 1 BTC of underlying, so the USD cost
- * of opening 1 contract equals markPrice * CONTRACT_SIZE.
+ * Bybit options contract size (张 → underlying 数量)。
+ * BTC 为 0.01 BTC/张，ETH 为 0.1 ETH/张。
+ * markPrice 以每 1 个 underlying 的 USD 报价，因此 1 张的 USD 成本
+ * = markPrice * contractSize。
  */
-export const CONTRACT_SIZE = 0.01;
+const CONTRACT_SIZE: Record<Coin, number> = {
+  BTC: 0.01,
+  ETH: 0.1,
+};
+
+export function contractSizeFor(coin: Coin): number {
+  return CONTRACT_SIZE[coin];
+}
 
 /**
  * Delta 阈值。
@@ -22,6 +31,7 @@ export const DELTA_LIMIT = 0.1;
 export interface BuildSpreadsInput {
   tickers: OptionTicker[];
   expiryLabel: string;
+  coin: Coin;
   strategies?: SpreadStrategy[]; // default: both
 }
 
@@ -117,8 +127,9 @@ export function buildSpreadsForExpiry(
     bullPut: number;
   };
 } {
-  const { tickers, expiryLabel } = input;
+  const { tickers, expiryLabel, coin } = input;
   const strategies = input.strategies ?? ["BearCall", "BullPut"];
+  const contractSize = contractSizeFor(coin);
 
   const ofExpiry = tickers.filter((t) => t.expiryLabel === expiryLabel);
   const underlyingPrice = underlyingFrom(ofExpiry);
@@ -144,6 +155,7 @@ export function buildSpreadsForExpiry(
           "BearCall",
           expiryLabel,
           underlyingPrice,
+          contractSize,
         );
         if (combo) combos.push(combo);
       }
@@ -163,6 +175,7 @@ export function buildSpreadsForExpiry(
           "BullPut",
           expiryLabel,
           underlyingPrice,
+          contractSize,
         );
         if (combo) combos.push(combo);
       }
@@ -191,14 +204,15 @@ function toCombo(
   strategy: SpreadStrategy,
   expiryLabel: string,
   underlyingPrice: number,
+  contractSize: number,
 ): SpreadCombo | null {
-  // Credit per BTC of underlying (in USD), then per-contract by multiplying by CONTRACT_SIZE.
-  const netCreditPerBtc = sell.markPrice - buy.markPrice;
-  if (!(netCreditPerBtc > 0)) return null;
+  // Credit per unit of underlying (USD)，再乘合约单位得到 1 张的 USD。
+  const netCreditPerUnit = sell.markPrice - buy.markPrice;
+  if (!(netCreditPerUnit > 0)) return null;
 
-  const netCreditUsd = netCreditPerBtc * CONTRACT_SIZE;
+  const netCreditUsd = netCreditPerUnit * contractSize;
   const width = Math.abs(buy.strike - sell.strike);
-  const maxLossUsd = width * CONTRACT_SIZE - netCreditUsd;
+  const maxLossUsd = width * contractSize - netCreditUsd;
   if (!(maxLossUsd > 0)) return null;
 
   const maxProfitUsd = netCreditUsd;
@@ -206,11 +220,9 @@ function toCombo(
 
   let breakEven: number;
   if (strategy === "BearCall") {
-    // Loss above breakeven: K_sell + netCreditPerBtc
-    breakEven = sell.strike + netCreditPerBtc;
+    breakEven = sell.strike + netCreditPerUnit;
   } else {
-    // Loss below breakeven: K_sell - netCreditPerBtc
-    breakEven = sell.strike - netCreditPerBtc;
+    breakEven = sell.strike - netCreditPerUnit;
   }
 
   const daysToExpiry = Math.max(
