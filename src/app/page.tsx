@@ -6,6 +6,7 @@ import { CoinSwitcher } from "@/components/CoinSwitcher";
 import { ExpiryPicker } from "@/components/ExpiryPicker";
 import { StrategyFilter } from "@/components/StrategyFilter";
 import { SpreadTable } from "@/components/SpreadTable";
+import { IronCondorTable } from "@/components/IronCondorTable";
 import { usePolling } from "@/hooks/usePolling";
 import { formatDays, formatRelative } from "@/lib/format";
 import type {
@@ -201,6 +202,15 @@ export default function HomePage() {
         <SpreadTable
           combos={hasData ? spreads!.combos : []}
           loading={spreadsState.loading}
+        />
+      </section>
+
+      {/* Iron Condor 独立板块 */}
+      <section>
+        <IronCondorTable
+          combos={spreads?.ironCondors ?? []}
+          loading={spreadsState.loading}
+          coin={coin}
         />
       </section>
 

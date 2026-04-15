@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchOptionTickers } from "@/lib/bybit";
-import { buildSpreadsForExpiry } from "@/lib/spreads";
+import { buildIronCondors, buildSpreadsForExpiry } from "@/lib/spreads";
 import type { Coin, SpreadStrategy, SpreadsResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -47,6 +47,24 @@ export async function GET(req: NextRequest) {
       strategies,
     });
 
+    // Iron Condor 独立板块：始终基于完整的 BCS/BPS 池计算（不受 strategies 过滤影响）。
+    const { combos: fullCombos } =
+      strategies === undefined
+        ? { combos }
+        : buildSpreadsForExpiry({
+            tickers,
+            expiryLabel,
+            coin,
+          });
+    const bearCallCombos = fullCombos.filter((c) => c.strategy === "BearCall");
+    const bullPutCombos = fullCombos.filter((c) => c.strategy === "BullPut");
+    const ironCondors = buildIronCondors(
+      bearCallCombos,
+      bullPutCombos,
+      coin,
+      expiryLabel,
+    );
+
     const daysToExpiry = Math.max(
       0,
       (sample.expiryMs - Date.now()) / (24 * 60 * 60 * 1000),
@@ -59,8 +77,9 @@ export async function GET(req: NextRequest) {
       expiryLabel,
       expiryMs: sample.expiryMs,
       daysToExpiry,
-      counts,
+      counts: { ...counts, ironCondor: ironCondors.length },
       combos,
+      ironCondors,
     };
 
     return NextResponse.json(payload);

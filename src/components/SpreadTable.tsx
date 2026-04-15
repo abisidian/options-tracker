@@ -18,6 +18,7 @@ type SortKey =
   | "netCredit"
   | "maxProfit"
   | "maxLoss"
+  | "fees"
   | "riskReward"
   | "breakEven"
   | "width";
@@ -148,43 +149,68 @@ const COLUMNS: Column[] = [
   {
     key: "maxProfit",
     label: "最大盈利",
+    sub: "扣费后",
     align: "right",
     numeric: true,
-    value: (c) => c.maxProfitUsd,
+    value: (c) => c.netMaxProfitUsd,
     render: (c) => (
-      <span className="font-mono tabular-nums font-semibold text-profit">
-        +{formatUsd(c.maxProfitUsd)}
+      <span
+        className="font-mono tabular-nums font-semibold text-profit"
+        title={`毛利 +${formatUsd(c.maxProfitUsd)} − 手续费 ${formatUsd(c.feesUsd)}`}
+      >
+        +{formatUsd(c.netMaxProfitUsd)}
       </span>
     ),
   },
   {
     key: "maxLoss",
     label: "最大亏损",
+    sub: "含手续费",
     align: "right",
     numeric: true,
-    value: (c) => c.maxLossUsd,
+    value: (c) => c.netMaxLossUsd,
     render: (c) => (
-      <span className="font-mono tabular-nums font-semibold text-loss">
-        −{formatUsd(c.maxLossUsd)}
+      <span
+        className="font-mono tabular-nums font-semibold text-loss"
+        title={`毛亏 −${formatUsd(c.maxLossUsd)} + 手续费 ${formatUsd(c.feesUsd)}`}
+      >
+        −{formatUsd(c.netMaxLossUsd)}
+      </span>
+    ),
+  },
+  {
+    key: "fees",
+    label: "手续费",
+    sub: "2 腿往返",
+    align: "right",
+    numeric: true,
+    value: (c) => c.feesUsd,
+    render: (c) => (
+      <span
+        className="font-mono tabular-nums text-fg-muted"
+        title={`卖腿 ${formatUsd(c.sellLegFeeUsd)} · 买腿 ${formatUsd(c.buyLegFeeUsd)}`}
+      >
+        {formatUsd(c.feesUsd)}
       </span>
     ),
   },
   {
     key: "riskReward",
-    label: "盈亏比",
-    sub: "profit / loss",
+    label: "净盈亏比",
+    sub: "扣费后",
     align: "right",
     numeric: true,
-    value: (c) => c.riskReward,
+    value: (c) => c.netRiskReward,
     render: (c) => {
-      const good = c.riskReward >= 0.3;
+      const good = c.netRiskReward >= 0.3;
       return (
         <span
           className={`font-mono tabular-nums font-semibold ${
             good ? "text-warn" : "text-fg-muted"
           }`}
+          title={`毛盈亏比 ${formatRatio(c.riskReward)}（未扣费）`}
         >
-          {formatRatio(c.riskReward)}
+          {formatRatio(c.netRiskReward)}
         </span>
       );
     },

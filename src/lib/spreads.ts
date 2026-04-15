@@ -1,10 +1,15 @@
+import { legRoundTripFeeUsd } from "./fees";
 import type {
   Coin,
+  IronCondorCombo,
   OptionTicker,
   OptionType,
   SpreadCombo,
   SpreadStrategy,
 } from "./types";
+
+/** Iron Condor 的最小盈亏比过滤阈值。 */
+export const IRON_CONDOR_MIN_RR = 0.3;
 
 /**
  * Bybit options contract size (张 → underlying 数量)。
@@ -218,6 +223,22 @@ function toCombo(
   const maxProfitUsd = netCreditUsd;
   const riskReward = maxProfitUsd / maxLossUsd;
 
+  const sellLegFeeUsd = legRoundTripFeeUsd(
+    sell.markPrice,
+    underlyingPrice,
+    contractSize,
+  );
+  const buyLegFeeUsd = legRoundTripFeeUsd(
+    buy.markPrice,
+    underlyingPrice,
+    contractSize,
+  );
+  const feesUsd = sellLegFeeUsd + buyLegFeeUsd;
+  const netMaxProfitUsd = maxProfitUsd - feesUsd;
+  const netMaxLossUsd = maxLossUsd + feesUsd;
+  const netRiskReward =
+    netMaxLossUsd > 0 ? netMaxProfitUsd / netMaxLossUsd : 0;
+
   let breakEven: number;
   if (strategy === "BearCall") {
     breakEven = sell.strike + netCreditPerUnit;
@@ -243,10 +264,100 @@ function toCombo(
     maxLossUsd,
     riskReward,
     returnOnRisk: riskReward,
+    sellLegFeeUsd,
+    buyLegFeeUsd,
+    feesUsd,
+    netMaxProfitUsd,
+    netMaxLossUsd,
+    netRiskReward,
     breakEven,
     width,
     underlyingPrice,
   };
+}
+
+/**
+ * 基于已有的 BCS 与 BPS combo 列表，笛卡尔配对成 Iron Condor。
+ * 仅保留 `riskReward >= IRON_CONDOR_MIN_RR` 的组合。
+ *
+ * 结构约束：K_pb < K_ps < 现价 < K_cs < K_cb（由上游候选腿筛选保证）。
+ * 铁鹰到期一侧最多 ITM，因此 maxLoss = max(callWidth, putWidth) * contractSize - netCredit。
+ */
+export function buildIronCondors(
+  bearCalls: SpreadCombo[],
+  bullPuts: SpreadCombo[],
+  coin: Coin,
+  expiryLabel: string,
+): IronCondorCombo[] {
+  const contractSize = contractSizeFor(coin);
+  const out: IronCondorCombo[] = [];
+
+  for (const bcs of bearCalls) {
+    for (const bps of bullPuts) {
+      if (bcs.expiryLabel !== expiryLabel || bps.expiryLabel !== expiryLabel) {
+        continue;
+      }
+      const netCreditUsd = bcs.netCreditUsd + bps.netCreditUsd;
+      const netCreditPerUnit = netCreditUsd / contractSize;
+      const widthUsd = Math.max(bcs.width, bps.width) * contractSize;
+      const maxLossUsd = widthUsd - netCreditUsd;
+      if (!(maxLossUsd > 0)) continue;
+
+      const riskReward = netCreditUsd / maxLossUsd;
+
+      const putBuyLegFeeUsd = bps.buyLegFeeUsd;
+      const putSellLegFeeUsd = bps.sellLegFeeUsd;
+      const callSellLegFeeUsd = bcs.sellLegFeeUsd;
+      const callBuyLegFeeUsd = bcs.buyLegFeeUsd;
+      const feesUsd =
+        putBuyLegFeeUsd +
+        putSellLegFeeUsd +
+        callSellLegFeeUsd +
+        callBuyLegFeeUsd;
+      const netMaxProfitUsd = netCreditUsd - feesUsd;
+      const netMaxLossUsd = maxLossUsd + feesUsd;
+      const netRiskReward =
+        netMaxLossUsd > 0 ? netMaxProfitUsd / netMaxLossUsd : 0;
+
+      // 过滤按「净盈亏比」执行——扣除手续费后仍达标才保留。
+      if (!(netRiskReward >= IRON_CONDOR_MIN_RR)) continue;
+
+      const lowerBreakEven = bps.sellLeg.strike - netCreditPerUnit;
+      const upperBreakEven = bcs.sellLeg.strike + netCreditPerUnit;
+
+      out.push({
+        id: `IronCondor:${bcs.sellLeg.symbol}:${bcs.buyLeg.symbol}:${bps.sellLeg.symbol}:${bps.buyLeg.symbol}`,
+        strategy: "IronCondor",
+        expiryLabel,
+        expiryMs: bcs.expiryMs,
+        daysToExpiry: bcs.daysToExpiry,
+        putBuyLeg: bps.buyLeg,
+        putSellLeg: bps.sellLeg,
+        callSellLeg: bcs.sellLeg,
+        callBuyLeg: bcs.buyLeg,
+        netCreditUsd,
+        maxProfitUsd: netCreditUsd,
+        maxLossUsd,
+        riskReward,
+        returnOnRisk: riskReward,
+        putBuyLegFeeUsd,
+        putSellLegFeeUsd,
+        callSellLegFeeUsd,
+        callBuyLegFeeUsd,
+        feesUsd,
+        netMaxProfitUsd,
+        netMaxLossUsd,
+        netRiskReward,
+        lowerBreakEven,
+        upperBreakEven,
+        putWidth: bps.width,
+        callWidth: bcs.width,
+        underlyingPrice: bcs.underlyingPrice,
+      });
+    }
+  }
+
+  return out;
 }
 
 export const __test = { toCombo, underlyingFrom };

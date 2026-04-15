@@ -203,6 +203,15 @@ export async function fetchOptionTickers(coin: Coin): Promise<OptionTicker[]> {
       continue;
     }
 
+    // 过滤掉"空壳"合约：Bybit 会返回尚未开始真实交易的 symbol
+    // （OI=0 且买卖盘都为 0），这些到期日会污染到期日下拉与价差扫描。
+    const bid = Number(raw.bid1Price) || 0;
+    const ask = Number(raw.ask1Price) || 0;
+    const openInterest = Number(raw.openInterest) || 0;
+    if (openInterest === 0 && bid === 0 && ask === 0) {
+      continue;
+    }
+
     normalized.push({
       symbol: raw.symbol,
       baseCoin: parsed.baseCoin,
@@ -210,15 +219,15 @@ export async function fetchOptionTickers(coin: Coin): Promise<OptionTicker[]> {
       expiryLabel: parsed.expiryLabel,
       strike: parsed.strike,
       type: parsed.type,
-      bid1Price: Number(raw.bid1Price) || 0,
-      ask1Price: Number(raw.ask1Price) || 0,
+      bid1Price: bid,
+      ask1Price: ask,
       markPrice,
       markIv: Number(raw.markIv) || 0,
       delta,
       gamma: Number(raw.gamma) || 0,
       theta: Number(raw.theta) || 0,
       vega: Number(raw.vega) || 0,
-      openInterest: Number(raw.openInterest) || 0,
+      openInterest,
       underlyingPrice,
     });
   }

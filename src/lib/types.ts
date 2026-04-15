@@ -59,8 +59,55 @@ export interface SpreadCombo {
   maxLossUsd: number; // per 1 contract
   riskReward: number; // maxProfit / maxLoss
   returnOnRisk: number; // maxProfit / maxLoss (same formula, kept for clarity)
+  // 手续费（USD / 合约）：每条腿的「开仓+平仓」往返估算，总和 = sellLegFeeUsd + buyLegFeeUsd
+  sellLegFeeUsd: number;
+  buyLegFeeUsd: number;
+  feesUsd: number; // 总往返手续费
+  netMaxProfitUsd: number; // maxProfit - feesUsd
+  netMaxLossUsd: number; // maxLoss + feesUsd
+  netRiskReward: number; // netMaxProfit / netMaxLoss
   breakEven: number;
   width: number; // |K_buy - K_sell|
+  underlyingPrice: number;
+}
+
+export interface LegSnapshot {
+  symbol: string;
+  strike: number;
+  delta: number;
+  markPrice: number;
+  bid: number;
+  ask: number;
+}
+
+export interface IronCondorCombo {
+  id: string;
+  strategy: "IronCondor";
+  expiryLabel: string;
+  expiryMs: number;
+  daysToExpiry: number;
+  putBuyLeg: LegSnapshot; // K_pb: 买入低行权价 Put
+  putSellLeg: LegSnapshot; // K_ps: 卖出高行权价 Put
+  callSellLeg: LegSnapshot; // K_cs: 卖出低行权价 Call
+  callBuyLeg: LegSnapshot; // K_cb: 买入高行权价 Call
+  netCreditUsd: number;
+  maxProfitUsd: number;
+  maxLossUsd: number;
+  riskReward: number;
+  returnOnRisk: number;
+  // 四条腿的往返手续费（USD / 合约）
+  putBuyLegFeeUsd: number;
+  putSellLegFeeUsd: number;
+  callSellLegFeeUsd: number;
+  callBuyLegFeeUsd: number;
+  feesUsd: number; // 四条腿往返总费用
+  netMaxProfitUsd: number;
+  netMaxLossUsd: number;
+  netRiskReward: number;
+  lowerBreakEven: number;
+  upperBreakEven: number;
+  putWidth: number;
+  callWidth: number;
   underlyingPrice: number;
 }
 
@@ -77,6 +124,8 @@ export interface SpreadsResponse {
     filteredPuts: number;
     bearCall: number;
     bullPut: number;
+    ironCondor: number;
   };
   combos: SpreadCombo[];
+  ironCondors: IronCondorCombo[];
 }
