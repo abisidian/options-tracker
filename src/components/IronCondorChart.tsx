@@ -18,6 +18,20 @@ const PAD_R = 24;
 const PAD_T = 24;
 const PAD_B = 40;
 
+/* OKLCH-derived colors for chart elements */
+const CHART_COLORS = {
+  line: "oklch(0.72 0.12 230)",       // calm blue for PnL curve
+  profit: "oklch(0.72 0.17 155)",     // green
+  loss: "oklch(0.63 0.20 25)",        // red
+  warn: "oklch(0.78 0.14 75)",        // amber - underlying price
+  strike: "oklch(0.48 0.015 260)",    // dim - strike lines
+  strikeSell: "oklch(0.60 0.10 155)", // muted green - sell strikes
+  zero: "oklch(0.38 0.015 260)",      // zero line
+  axis: "oklch(0.55 0.015 260)",      // axis labels
+  hover: "oklch(0.85 0.005 260)",     // hover crosshair
+  profitZone: "oklch(0.72 0.17 155)", // green zone fill
+} as const;
+
 export function IronCondorChart({ combo, coin, onClose }: Props) {
   const curve = useMemo(
     () => ironCondorPayoffCurve(combo, coin, { steps: 80 }),
@@ -74,26 +88,26 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
   }, [hoverX, curve, minPrice, maxPrice]);
 
   const verticalMarkers: Array<{ x: number; label: string; color: string }> = [
-    { x: combo.putBuyLeg.strike, label: `K_pb ${formatStrike(combo.putBuyLeg.strike)}`, color: "#64748b" },
-    { x: combo.putSellLeg.strike, label: `K_ps ${formatStrike(combo.putSellLeg.strike)}`, color: "#22c55e" },
-    { x: combo.callSellLeg.strike, label: `K_cs ${formatStrike(combo.callSellLeg.strike)}`, color: "#22c55e" },
-    { x: combo.callBuyLeg.strike, label: `K_cb ${formatStrike(combo.callBuyLeg.strike)}`, color: "#64748b" },
+    { x: combo.putBuyLeg.strike, label: `K_pb ${formatStrike(combo.putBuyLeg.strike)}`, color: CHART_COLORS.strike },
+    { x: combo.putSellLeg.strike, label: `K_ps ${formatStrike(combo.putSellLeg.strike)}`, color: CHART_COLORS.strikeSell },
+    { x: combo.callSellLeg.strike, label: `K_cs ${formatStrike(combo.callSellLeg.strike)}`, color: CHART_COLORS.strikeSell },
+    { x: combo.callBuyLeg.strike, label: `K_cb ${formatStrike(combo.callBuyLeg.strike)}`, color: CHART_COLORS.strike },
   ];
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl overflow-hidden rounded-xl border border-border-subtle bg-bg-card shadow-xl"
+        className="w-full max-w-3xl overflow-hidden rounded-xl border border-border-subtle bg-bg-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3.5">
           <div className="flex flex-col gap-0.5">
-            <div className="text-sm font-semibold text-fg">
+            <div className="text-sm font-medium text-fg">
               铁鹰盈亏曲线 · {combo.expiryLabel}
             </div>
             <div className="font-mono text-2xs text-fg-dim">
@@ -104,16 +118,16 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="focus-ring rounded p-1 text-fg-muted hover:bg-bg-muted hover:text-fg"
+            className="focus-ring rounded p-1.5 text-fg-dim transition-colors hover:text-fg"
             aria-label="关闭"
           >
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-              <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+              <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
           </button>
         </div>
 
-        <div className="px-4 py-3">
+        <div className="px-5 py-4">
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             className="w-full"
@@ -124,14 +138,13 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
             }}
             onMouseLeave={() => setHoverX(null)}
           >
-            {/* 背景盈亏区域填充 */}
             <defs>
               <clipPath id="plot-clip">
                 <rect x={PAD_L} y={PAD_T} width={WIDTH - PAD_L - PAD_R} height={HEIGHT - PAD_T - PAD_B} />
               </clipPath>
             </defs>
 
-            {/* 最大盈利区间高亮（K_ps ~ K_cs） */}
+            {/* Profit zone highlight */}
             {(() => {
               const x1 = xScale(combo.putSellLeg.strike);
               const x2 = xScale(combo.callSellLeg.strike);
@@ -143,151 +156,123 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
                     y={PAD_T}
                     width={x2 - x1}
                     height={HEIGHT - PAD_T - PAD_B}
-                    fill="#22c55e"
-                    fillOpacity="0.08"
+                    fill={CHART_COLORS.profitZone}
+                    fillOpacity="0.05"
                   />
                   <line
-                    x1={x1}
-                    x2={x2}
-                    y1={yTop}
-                    y2={yTop}
-                    stroke="#22c55e"
-                    strokeWidth="2"
+                    x1={x1} x2={x2} y1={yTop} y2={yTop}
+                    stroke={CHART_COLORS.profit}
+                    strokeWidth="1.5"
                   />
                   <text
-                    x={(x1 + x2) / 2}
-                    y={PAD_T + 12}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fill="#22c55e"
+                    x={(x1 + x2) / 2} y={PAD_T + 12}
+                    textAnchor="middle" fontSize="10"
+                    fill={CHART_COLORS.profit}
+                    fontFamily="var(--font-geist-sans)"
                   >
-                    最大盈利区间 {formatStrike(combo.putSellLeg.strike)} ~ {formatStrike(combo.callSellLeg.strike)}
+                    {formatStrike(combo.putSellLeg.strike)} ~ {formatStrike(combo.callSellLeg.strike)}
                   </text>
                 </g>
               );
             })()}
 
-            {/* Y 轴 0 基线 */}
+            {/* Zero baseline */}
             <line
-              x1={PAD_L}
-              x2={WIDTH - PAD_R}
-              y1={zeroY}
-              y2={zeroY}
-              stroke="#475569"
-              strokeDasharray="4 4"
-              strokeWidth="1"
+              x1={PAD_L} x2={WIDTH - PAD_R} y1={zeroY} y2={zeroY}
+              stroke={CHART_COLORS.zero}
+              strokeDasharray="4 4" strokeWidth="1"
             />
 
-            {/* 4 个行权价垂直参考线 */}
+            {/* Strike lines */}
             {verticalMarkers.map((m) => (
-              <g key={m.label}>
-                <line
-                  x1={xScale(m.x)}
-                  x2={xScale(m.x)}
-                  y1={PAD_T}
-                  y2={HEIGHT - PAD_B}
-                  stroke={m.color}
-                  strokeOpacity="0.35"
-                  strokeWidth="1"
-                />
-              </g>
+              <line
+                key={m.label}
+                x1={xScale(m.x)} x2={xScale(m.x)}
+                y1={PAD_T} y2={HEIGHT - PAD_B}
+                stroke={m.color} strokeOpacity="0.3" strokeWidth="1"
+              />
             ))}
 
-            {/* 标的现价垂直线 */}
+            {/* Underlying price */}
             {combo.underlyingPrice >= minPrice && combo.underlyingPrice <= maxPrice ? (
               <line
-                x1={xScale(combo.underlyingPrice)}
-                x2={xScale(combo.underlyingPrice)}
-                y1={PAD_T}
-                y2={HEIGHT - PAD_B}
-                stroke="#f59e0b"
-                strokeDasharray="3 3"
-                strokeWidth="1"
+                x1={xScale(combo.underlyingPrice)} x2={xScale(combo.underlyingPrice)}
+                y1={PAD_T} y2={HEIGHT - PAD_B}
+                stroke={CHART_COLORS.warn}
+                strokeDasharray="3 3" strokeWidth="1"
               />
             ) : null}
 
-            {/* 盈亏平衡点 */}
+            {/* Break-even lines */}
             {[combo.lowerBreakEven, combo.upperBreakEven].map((be) => (
               <line
                 key={be}
-                x1={xScale(be)}
-                x2={xScale(be)}
-                y1={PAD_T}
-                y2={HEIGHT - PAD_B}
-                stroke="#94a3b8"
-                strokeDasharray="2 4"
-                strokeWidth="1"
-                strokeOpacity="0.6"
+                x1={xScale(be)} x2={xScale(be)}
+                y1={PAD_T} y2={HEIGHT - PAD_B}
+                stroke={CHART_COLORS.axis}
+                strokeDasharray="2 4" strokeWidth="1" strokeOpacity="0.5"
               />
             ))}
 
-            {/* PnL 曲线 */}
+            {/* PnL curve */}
             <path
               d={linePath}
-              fill="none"
-              stroke="#38bdf8"
-              strokeWidth="2"
-              clipPath="url(#plot-clip)"
+              fill="none" stroke={CHART_COLORS.line}
+              strokeWidth="2" clipPath="url(#plot-clip)"
             />
 
-            {/* X 轴刻度（4 strikes） */}
+            {/* X axis labels */}
             {verticalMarkers.map((m) => (
               <text
                 key={`lbl-${m.label}`}
-                x={xScale(m.x)}
-                y={HEIGHT - PAD_B + 14}
-                textAnchor="middle"
-                fontSize="10"
-                fill="#94a3b8"
+                x={xScale(m.x)} y={HEIGHT - PAD_B + 14}
+                textAnchor="middle" fontSize="10"
+                fill={CHART_COLORS.axis}
+                fontFamily="var(--font-geist-mono)"
               >
                 {formatStrike(m.x)}
               </text>
             ))}
 
-            {/* Y 轴刻度 */}
-            <text x={PAD_L - 8} y={yScale(maxPnl)} textAnchor="end" fontSize="10" fill="#94a3b8" dominantBaseline="middle">
+            {/* Y axis labels */}
+            <text x={PAD_L - 8} y={yScale(maxPnl)} textAnchor="end" fontSize="10" fill={CHART_COLORS.axis} dominantBaseline="middle" fontFamily="var(--font-geist-mono)">
               {formatUsd(maxPnl)}
             </text>
-            <text x={PAD_L - 8} y={yScale(0)} textAnchor="end" fontSize="10" fill="#94a3b8" dominantBaseline="middle">
+            <text x={PAD_L - 8} y={yScale(0)} textAnchor="end" fontSize="10" fill={CHART_COLORS.axis} dominantBaseline="middle" fontFamily="var(--font-geist-mono)">
               $0
             </text>
-            <text x={PAD_L - 8} y={yScale(minPnl)} textAnchor="end" fontSize="10" fill="#94a3b8" dominantBaseline="middle">
+            <text x={PAD_L - 8} y={yScale(minPnl)} textAnchor="end" fontSize="10" fill={CHART_COLORS.axis} dominantBaseline="middle" fontFamily="var(--font-geist-mono)">
               {formatUsd(minPnl)}
             </text>
 
-            {/* Hover 指示 */}
+            {/* Hover indicator */}
             {hoverPoint ? (
               <g>
                 <line
-                  x1={xScale(hoverPoint.price)}
-                  x2={xScale(hoverPoint.price)}
-                  y1={PAD_T}
-                  y2={HEIGHT - PAD_B}
-                  stroke="#e2e8f0"
-                  strokeOpacity="0.25"
-                  strokeWidth="1"
+                  x1={xScale(hoverPoint.price)} x2={xScale(hoverPoint.price)}
+                  y1={PAD_T} y2={HEIGHT - PAD_B}
+                  stroke={CHART_COLORS.hover} strokeOpacity="0.15" strokeWidth="1"
                 />
                 <circle
-                  cx={xScale(hoverPoint.price)}
-                  cy={yScale(hoverPoint.pnl)}
-                  r="4"
-                  fill={hoverPoint.pnl >= 0 ? "#22c55e" : "#ef4444"}
+                  cx={xScale(hoverPoint.price)} cy={yScale(hoverPoint.pnl)}
+                  r="3.5"
+                  fill={hoverPoint.pnl >= 0 ? CHART_COLORS.profit : CHART_COLORS.loss}
                 />
               </g>
             ) : null}
           </svg>
 
-          {/* 数字汇总 */}
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-2xs text-fg-dim sm:grid-cols-4">
+          {/* Stats grid */}
+          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-2xs sm:grid-cols-4">
             <Stat label="标的现价" value={formatStrike(combo.underlyingPrice)} />
             <Stat label="净权利金" value={formatUsd(combo.netCreditUsd)} tone="profit" />
-            <Stat label="手续费(4腿往返)" value={`−${formatUsd(combo.feesUsd)}`} tone="loss" />
-            <Stat label="最大盈利(扣费后)" value={`+${formatUsd(combo.netMaxProfitUsd)}`} tone="profit" />
-            <Stat label="最大亏损(含手续费)" value={`−${formatUsd(combo.netMaxLossUsd)}`} tone="loss" />
+            <Stat label="手续费" value={`-${formatUsd(combo.feesUsd)}`} tone="loss" />
+            <Stat label="最大盈利" value={`+${formatUsd(combo.netMaxProfitUsd)}`} tone="profit" />
+            <Stat label="最大亏损" value={`-${formatUsd(combo.netMaxLossUsd)}`} tone="loss" />
             <Stat label="下盈亏平衡" value={formatStrike(combo.lowerBreakEven)} />
             <Stat label="上盈亏平衡" value={formatStrike(combo.upperBreakEven)} />
             <Stat
-              label="最大盈利区间"
+              label="盈利区间"
               value={`${formatStrike(combo.putSellLeg.strike)} ~ ${formatStrike(combo.callSellLeg.strike)}`}
               tone="profit"
             />
@@ -296,7 +281,7 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
             {hoverPoint ? (
               <Stat
                 label="鼠标处"
-                value={`${formatStrike(hoverPoint.price)} → ${hoverPoint.pnl >= 0 ? "+" : "−"}${formatUsd(Math.abs(hoverPoint.pnl))}`}
+                value={`${formatStrike(hoverPoint.price)} → ${hoverPoint.pnl >= 0 ? "+" : "-"}${formatUsd(Math.abs(hoverPoint.pnl))}`}
                 tone={hoverPoint.pnl >= 0 ? "profit" : "loss"}
               />
             ) : null}

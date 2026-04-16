@@ -24,10 +24,10 @@ export function CoinSwitcher({ value, onChange }: Props) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(coin)}
-            className={`focus-ring rounded-md px-2.5 py-1 font-mono font-semibold tracking-wide transition-colors cursor-pointer ${
+            className={`focus-ring rounded-md px-2.5 py-1 font-mono font-medium tracking-wide transition-colors cursor-pointer ${
               active
-                ? "bg-info/15 text-info"
-                : "text-fg-muted hover:text-fg"
+                ? "bg-bg-muted text-fg"
+                : "text-fg-dim hover:text-fg-muted"
             }`}
           >
             {coin}

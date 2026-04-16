@@ -1,7 +1,8 @@
 "use client";
 
-import { formatUsd, formatRelative } from "@/lib/format";
+import { formatUsd } from "@/lib/format";
 import { usePolling } from "@/hooks/usePolling";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
 import type { Coin } from "@/lib/types";
 
 interface PriceResponse {
@@ -30,35 +31,33 @@ export function BtcPriceHeader({ coin }: Props) {
     [coin],
   );
 
+  const relativeTime = useRelativeTime(fetchedAt);
   const priceFormat: "int" | "full" = coin === "BTC" ? "int" : "full";
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border-subtle bg-bg-card px-4 py-3">
-      <div className="flex items-center gap-2">
-        <div className="h-2 w-2 animate-pulse rounded-full bg-profit" aria-hidden />
-        <span className="text-2xs font-medium uppercase tracking-[0.14em] text-fg-muted">
-          {coin} / USDT
-        </span>
-      </div>
+    <div className="flex items-center gap-5 rounded-xl border border-border-subtle bg-bg-card px-5 py-3.5">
+      <span className="text-2xs font-medium uppercase tracking-[0.12em] text-fg-dim">
+        {coin}/USDT
+      </span>
 
       <div className="flex items-baseline gap-2">
         {data ? (
-          <span className="font-mono text-2xl font-semibold tabular-nums text-fg">
+          <span className="font-mono text-xl font-semibold tabular-nums tracking-tight text-fg">
             {formatUsd(data.price, priceFormat)}
           </span>
         ) : (
-          <span className="h-7 w-32 animate-pulse rounded bg-bg-muted" aria-hidden />
+          <span className="h-6 w-28 animate-pulse rounded bg-bg-muted" aria-hidden />
         )}
-        <span className="text-2xs text-fg-dim">Bybit Spot</span>
+        <span className="text-2xs text-fg-dim">Spot</span>
       </div>
 
       <div className="ml-auto flex items-center gap-3 text-2xs text-fg-dim">
         {error ? (
           <span className="text-loss" role="status">
-            ⚠ {error}
+            {error}
           </span>
         ) : null}
-        <span>{fetchedAt ? `更新于 ${formatRelative(fetchedAt)}` : "连接中…"}</span>
+        <span>{relativeTime}</span>
       </div>
     </div>
   );

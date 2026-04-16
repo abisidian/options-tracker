@@ -1,9 +1,78 @@
 import { contractSizeFor } from "./spreads";
-import type { Coin, IronCondorCombo } from "./types";
+import type { Coin, IronCondorCombo, SpreadCombo } from "./types";
 
 export interface PayoffPoint {
   price: number;
   pnl: number;
+}
+
+/**
+ * 计算两腿信用价差在到期时、给定标的价格 S 下的 PnL（per 1 张合约，USD）。
+ * Bear Call:
+ *   PnL(S) = 净权利金
+ *          − max(0, S − K_sell) × size
+ *          + max(0, S − K_buy) × size
+ * Bull Put:
+ *   PnL(S) = 净权利金
+ *          − max(0, K_sell − S) × size
+ *          + max(0, K_buy − S) × size
+ */
+export function spreadPayoffAt(
+  combo: SpreadCombo,
+  price: number,
+  coin: Coin,
+): number {
+  const size = contractSizeFor(coin);
+  const { sellLeg, buyLeg, netCreditUsd, strategy } = combo;
+
+  if (strategy === "BearCall") {
+    const shortCall = Math.max(0, price - sellLeg.strike);
+    const longCall = Math.max(0, price - buyLeg.strike);
+    return netCreditUsd + (-shortCall + longCall) * size;
+  }
+
+  const shortPut = Math.max(0, sellLeg.strike - price);
+  const longPut = Math.max(0, buyLeg.strike - price);
+  return netCreditUsd + (-shortPut + longPut) * size;
+}
+
+/**
+ * 采样一条价差到期盈亏曲线，关键转折点（买卖腿行权价、盈亏平衡点、现价）必被采样。
+ */
+export function spreadPayoffCurve(
+  combo: SpreadCombo,
+  coin: Coin,
+  opts: { steps?: number; paddingRatio?: number } = {},
+): PayoffPoint[] {
+  const steps = opts.steps ?? 60;
+  const paddingRatio = opts.paddingRatio ?? 0.12;
+  const anchors = [
+    combo.sellLeg.strike,
+    combo.buyLeg.strike,
+    combo.breakEven,
+    combo.underlyingPrice,
+  ];
+  const minAnchor = Math.min(...anchors);
+  const maxAnchor = Math.max(...anchors);
+  const span = Math.max(1, maxAnchor - minAnchor);
+  const lo = minAnchor - span * paddingRatio;
+  const hi = maxAnchor + span * paddingRatio;
+
+  const prices = new Set<number>();
+  for (let i = 0; i <= steps; i++) {
+    prices.add(lo + ((hi - lo) * i) / steps);
+  }
+
+  // 保证关键拐点和当前现价不会因为采样步长丢失。
+  for (const point of anchors) {
+    if (Number.isFinite(point)) {
+      prices.add(point);
+    }
+  }
+
+  return Array.from(prices)
+    .sort((a, b) => a - b)
+    .map((price) => ({ price, pnl: spreadPayoffAt(combo, price, coin) }));
 }
 
 /**

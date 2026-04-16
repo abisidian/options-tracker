@@ -2,17 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
-
 :root {
+  /* Spacing scale — 4pt base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+}
+
+/* Light theme */
+:root:not(.dark) {
+  color-scheme: light;
+
+  --color-bg:          oklch(0.97 0.005 260);
+  --color-bg-card:     oklch(1.00 0 0);
+  --color-bg-muted:    oklch(0.94 0.005 260);
+  --color-bg-elevated: oklch(0.98 0.005 260);
+
+  --color-fg:          oklch(0.20 0.02 260);
+  --color-fg-muted:    oklch(0.45 0.02 260);
+  --color-fg-dim:      oklch(0.58 0.015 260);
+
+  --color-border:      oklch(0.82 0.01 260);
+  --color-border-subtle: oklch(0.90 0.008 260);
+
+  --color-profit:      oklch(0.50 0.17 155);
+  --color-loss:        oklch(0.52 0.20 25);
+  --color-warn:        oklch(0.60 0.14 75);
+  --color-info:        oklch(0.50 0.14 250);
+}
+
+/* Dark theme */
+.dark {
   color-scheme: dark;
+
+  --color-bg:          oklch(0.13 0.02 260);
+  --color-bg-card:     oklch(0.16 0.015 260);
+  --color-bg-muted:    oklch(0.20 0.012 260);
+  --color-bg-elevated: oklch(0.18 0.015 260);
+
+  --color-fg:          oklch(0.95 0.005 260);
+  --color-fg-muted:    oklch(0.64 0.015 260);
+  --color-fg-dim:      oklch(0.48 0.015 260);
+
+  --color-border:      oklch(0.32 0.015 260);
+  --color-border-subtle: oklch(0.22 0.012 260);
+
+  --color-profit:      oklch(0.72 0.17 155);
+  --color-loss:        oklch(0.63 0.20 25);
+  --color-warn:        oklch(0.78 0.14 75);
+  --color-info:        oklch(0.65 0.14 250);
 }
 
 html,
 body {
-  background-color: #020617;
-  color: #f8fafc;
-  font-family: Inter, system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
@@ -33,25 +84,25 @@ body {
   }
 }
 
-/* Scrollbar styling for dark theme */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0e1223;
+  background: var(--color-bg-card);
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--color-border);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--color-fg-dim);
 }
 
 /* Focus ring utility */
 .focus-ring:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-info);
   outline-offset: 2px;
   border-radius: 4px;
 }

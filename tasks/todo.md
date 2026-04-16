@@ -1,5 +1,59 @@
 # TODO
 
+## 本次任务 - 修复 Next.js `Origin not allowed`
+
+- [x] 定位 `Origin not allowed` 的触发来源与受影响访问入口
+- [x] 调整 Next.js 配置，放行本地开发常见访问域名与可配置来源
+- [x] 验证构建通过，并记录本次修复结果
+
+## Review - 修复 Next.js `Origin not allowed`
+
+- 当前项目业务代码未使用 Server Action：`src/app/page.tsx` 的 `fetchExpiries` / `fetchSpreads` 与 `src/components/BtcPriceHeader.tsx` 的轮询逻辑均通过 `fetch('/api/...')` 请求 Route Handler
+- Next.js 的来源校验入口位于 `node_modules/next/dist/server/app-render/action-handler.js` 的 `handleAction`，当 `origin` 与 `host/x-forwarded-host` 不一致时会抛出 `Invalid Server Actions request`
+- 项目原本缺少允许来源配置：`next.config.js` 仅包含 `reactStrictMode` 和 `webpack` 轮询监听配置，未设置 `experimental.serverActions.allowedOrigins`
+- 已在 `next.config.js` 新增 `normalizeAllowedOrigin`、`getLocalIpv4Origins`、`getAllowedOrigins`，默认放行 `localhost:4000`、`127.0.0.1:4000`、机器 hostname、`hostname.local` 以及本机局域网 IPv4 地址，并支持通过 `NEXT_ALLOWED_ORIGINS` 追加自定义来源
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
+## 本次任务 - ETH 价格/行权价显示禁用 k 缩写
+
+- [x] 查找全局 `k` 缩写的价格格式化入口
+- [x] 修改显示逻辑，ETH 相关价格与行权价改为完整数字展示
+- [x] 验证构建通过，并记录本次变更结果
+
+## Review - ETH 价格/行权价显示禁用 k 缩写
+
+- 全局格式化入口位于 `src/lib/format.ts` 的 `formatStrike` 函数，价差表、铁鹰表、曲线 tooltip、筛选器和标的现价均复用该函数
+- 已移除 `formatStrike` 中 `>=1000` 时转为 `k` 缩写的逻辑，现统一按完整数字展示，例如 `2350`、`2300`、`100,000`
+- 按代码规范为 `src/lib/format.ts` 中的格式化函数补充了中文注释
+- 验证命令：`PATH=/opt/homebrew/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
+## 本次任务 - 价差表指标与曲线交互
+
+- [x] 移除价差表中的“平均盈亏比”和“平均盈利”两列及相关排序逻辑
+- [x] 为价差组合补充点击行查看盈亏曲线能力
+- [x] 验证构建通过，并记录本次变更结果
+
+## Review - 价差表指标与曲线交互
+
+- 更新 `src/components/SpreadTable.tsx`，移除“平均盈亏比 / 平均盈利”列与对应排序键，并给价差表增加点击行打开曲线弹层的交互
+- 新增 `src/components/SpreadChart.tsx`，复用现有图表风格渲染两腿信用价差的到期盈亏曲线、关键价位和 hover 读数
+- 更新 `src/lib/payoff.ts`，补充 `spreadPayoffAt` / `spreadPayoffCurve`，为价差曲线提供采样数据
+- 更新 `src/app/page.tsx`，向价差表传入 `coin` 以支持不同标的的合约乘数计算
+- 验证命令：`PATH=/opt/homebrew/bin:$PATH npm run build` 通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+- 本地预览：`PATH=/opt/homebrew/bin:$PATH npm run dev -- -p 4001` 已启动，`curl -I http://127.0.0.1:4001` 返回 `HTTP/1.1 200 OK`
+
+- [x] 表单控件样式优化：统一 select 和 input 的边框、焦点、hover、暗色模式表现
+- [x] 验证构建结果
+
+## Review - 表单控件样式优化
+
+- 新增 `src/components/FormControls.tsx`，统一 select/input 的边框、背景、hover、focus ring 和自定义下拉箭头样式
+- 更新 `src/components/ExpiryPicker.tsx`、`src/components/SpreadFilterPanel.tsx`、`src/components/IronCondorFilterPanel.tsx` 复用统一表单控件样式
+- 验证命令：`PATH=/opt/homebrew/bin:$PATH npm run build` 通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+- 本地 4000 预览服务由用户自行启动；当前通过 `curl` 可连通，但返回 `HTTP 500`
+
+---
+
 - [ ] 接入远端仓库并先同步远端历史
 - [ ] 提交本地修改并推送到 `git@github.com:abisidian/options-tracker.git`
 
@@ -8,3 +62,64 @@
 - 当前本地工作区干净，`git status --short --branch` 显示仅有 `main`
 - 远端 `origin` 已指向 `git@github.com:abisidian/options-tracker.git`
 - 直接使用 `~/.ssh/id_rsa` 连接 GitHub 时返回 `Permission denied (publickey)`，且该私钥需要口令，暂时无法在当前无交互流程中完成认证
+
+---
+
+## Spec - GitHub Push 后自动部署到服务器（PM2）- 现状分析
+
+- [ ] 确认现有运行方式与部署入口
+- [ ] 确认自动部署需要新增的仓库文件范围
+
+## 现状分析
+
+- 项目当前是标准 Next.js Node 服务启动方式，启动入口来自 `package.json` 的脚本定义：`package.json` 无函数定义，`scripts.build` 为 `next build`、`scripts.start` 为 `next start -p 4000`
+- 项目当前没有 PM2 进程配置文件：仓库根目录未找到 `ecosystem.config.js` / `ecosystem.config.cjs` / `pm2.config.js`
+- 项目当前没有 GitHub Actions 工作流：仓库中未找到 `.github/workflows/*`
+- 因为生产启动端口固定为 `4000`，所以 PM2 配置应直接围绕 `npm run start` 或 `next start -p 4000` 生成，这个结论的依据是 `package.json` 的 `scripts.start`
+- 本次工作需要尽量避开现有业务改动：当前工作区存在多处未提交修改，依据是 `git status --short --branch` 输出，部署相关改动应限制在 `.github/workflows/`、PM2 配置文件，以及必要时对 `package.json` 做最小调整
+
+## Spec - GitHub Push 后自动部署到服务器（PM2）- 功能点
+
+- [ ] 新增 PM2 生产进程配置文件
+- [ ] 新增 GitHub Actions 自动部署工作流
+- [ ] 保持现有业务启动脚本不变，部署逻辑复用现有 `npm` 脚本
+
+## 功能点
+
+- 新增 `ecosystem.config.cjs`，定义一个 PM2 应用，启动命令直接复用 `package.json` 的 `scripts.start`
+- 新增 `.github/workflows/deploy.yml`，在推送 `main` 分支后自动通过 SSH 登录服务器并执行部署
+- 工作流中的远端部署步骤固定为：进入项目目录、`git pull --ff-only`、`npm ci`、`npm run build`、`pm2 startOrReload ecosystem.config.cjs --update-env`
+- 工作流不把服务器地址、账号、私钥、项目目录写死在仓库里，统一从 GitHub Actions Secrets 读取
+- 不新增 README 或部署文档文件；交付说明直接在本次答复里告诉用户怎么配置服务器和 GitHub
+
+## Spec - GitHub Push 后自动部署到服务器（PM2）- 风险与决策
+
+- [ ] 固定工作流触发分支与服务器侧假设
+- [ ] 固定最小 Secret 集合与服务器预装依赖
+- [ ] 记录验证方式
+
+## 风险与决策
+
+- 决策：工作流默认监听 `main`。依据是当前仓库 `git status --short --branch` 显示本地分支为 `main`
+- 决策：服务器侧默认假设为 Linux 主机，已安装 `git`、`node`、`npm`、`pm2`，并且该服务当前已经由 PM2 托管运行
+- 决策：PM2 不作为项目依赖写入 `package.json`，而是作为服务器的全局运维依赖安装，避免把部署工具塞进应用运行时依赖
+- 风险：如果服务器 `git pull` 使用的是私有仓库但未配置 deploy key，工作流能连上服务器也会在拉代码阶段失败
+- 风险：如果服务器当前 PM2 进程名和新配置中的应用名不一致，首次自动部署可能会尝试拉起新进程并造成端口冲突，因此本次配置统一固定应用名为 `options-tracker`
+- 风险：如果服务器出口访问 Bybit 受限，应用部署成功后仍可能因运行时请求 `403` 无法正常取数；这一点的依据是 `README.md` 无函数定义，环境变量章节已说明 `HTTPS_PROXY` / `BYBIT_API_BASE` 的生产需求
+- 验证：本地验证以配置文件语法和 PM2 配置可加载为主；远端联调验证以 GitHub Actions 日志和服务器 `pm2 status` / `pm2 logs` 为准
+
+## 本次任务 - GitHub Push 后自动部署到服务器（PM2）
+
+- [x] 补全本次部署 Spec
+- [x] 新增 `ecosystem.config.cjs`
+- [x] 新增 `.github/workflows/deploy.yml`
+- [x] 验证新增配置文件可加载
+- [x] 记录本次变更结果
+
+## Review - GitHub Push 后自动部署到服务器（PM2）
+
+- 新增 [ecosystem.config.cjs](/Volumes/macos/Users/wangqichao/project/options-tracker/ecosystem.config.cjs:1)，统一 PM2 应用名为 `options-tracker`，通过 `npm run start` 复用 `package.json` 的生产启动脚本，并固定 `PORT=4000`
+- 新增 [.github/workflows/deploy.yml](/Volumes/macos/Users/wangqichao/project/options-tracker/.github/workflows/deploy.yml:1)，在 `push main` 或手动触发时，通过 SSH 登录服务器执行 `git pull --ff-only`、`npm ci`、`npm run build`、`pm2 startOrReload ecosystem.config.cjs --only options-tracker --update-env`
+- 配置验证 1：执行 `PATH=/opt/homebrew/bin:/usr/local/bin:$PATH node -e "const config=require('./ecosystem.config.cjs')..."` 成功，输出应用名 `options-tracker`、启动命令 `npm run start`、端口 `4000`
+- 配置验证 2：执行 `ruby -e "require 'yaml'; YAML.load_file('/Volumes/macos/Users/wangqichao/project/options-tracker/.github/workflows/deploy.yml')..."` 成功，读取到工作流名 `deploy-production`，步骤数为 `2`
+- 当前与本次任务直接相关的工作区改动为：`tasks/todo.md`、`.github/workflows/deploy.yml`、`ecosystem.config.cjs`

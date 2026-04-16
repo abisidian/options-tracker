@@ -1,0 +1,48 @@
+name: deploy-production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      # 端口默认走 22，避免每个仓库都必须单独配置。
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+
+    steps:
+      - name: Prepare SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${DEPLOY_PORT}" "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_ed25519 -p "${DEPLOY_PORT}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'bash -se' <<EOF
+            set -euo pipefail
+
+            # 切到服务器上的项目目录，拉取最新代码并安装依赖。
+            cd "${{ secrets.APP_DIR }}"
+            git pull --ff-only origin main
+            npm ci
+            npm run build
+
+            # 复用仓库里的 PM2 配置，已存在时 reload，不存在时 start。
+            pm2 startOrReload ecosystem.config.cjs --only options-tracker --update-env
+            pm2 save
+            pm2 status options-tracker
+          EOF
