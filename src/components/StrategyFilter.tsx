@@ -14,9 +14,21 @@ const STRATEGY_MODES: Array<{
   label: string;
   sub: string;
 }> = [
-  { key: "All", label: "全部", sub: "同时查看 Bear Call 与 Bull Put" },
-  { key: "BearCall", label: "Bear Call", sub: "熊市看涨信用价差" },
-  { key: "BullPut", label: "Bull Put", sub: "牛市看跌信用价差" },
+  {
+    key: "All",
+    label: "全部",
+    sub: "同时查看 Sell Call Spread 与 Sell Put Spread",
+  },
+  {
+    key: "BearCall",
+    label: "Sell Call Spread",
+    sub: "Sell lower-strike call, buy higher-strike call",
+  },
+  {
+    key: "BullPut",
+    label: "Sell Put Spread",
+    sub: "Sell higher-strike put, buy lower-strike put",
+  },
 ];
 
 function resolveSelectedMode(value: SpreadStrategy[]): StrategyModeKey {

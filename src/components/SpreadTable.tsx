@@ -44,10 +44,20 @@ interface Props {
 
 const STRATEGY_META: Record<
   SpreadCombo["strategy"],
-  { label: string; tone: "profit" | "loss" }
+  { label: string; title: string; tone: "profit" | "loss" }
 > = {
-  BearCall: { label: "BCS", tone: "loss" },
-  BullPut: { label: "BPS", tone: "profit" },
+  BearCall: {
+    // 使用完整英文术语，直接体现这是卖出看涨价差。
+    label: "Sell Call Spread",
+    title: "Sell Call Spread (sell lower-strike call, buy higher-strike call)",
+    tone: "loss",
+  },
+  BullPut: {
+    // 使用完整英文术语，直接体现这是卖出看跌价差。
+    label: "Sell Put Spread",
+    title: "Sell Put Spread (sell higher-strike put, buy lower-strike put)",
+    tone: "profit",
+  },
 };
 
 const COLUMNS: Column[] = [
@@ -66,7 +76,7 @@ const COLUMNS: Column[] = [
       return (
         <span
           className={`inline-flex h-5 items-center rounded px-1.5 font-mono text-2xs font-medium ${toneClass}`}
-          title={c.strategy === "BearCall" ? "Bear Call Spread" : "Bull Put Spread"}
+          title={meta.title}
         >
           {meta.label}
         </span>

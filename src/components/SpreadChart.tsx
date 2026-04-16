@@ -366,7 +366,9 @@ export function SpreadChart({ combo, coin, onClose }: Props) {
  * strategyLabel 将内部策略枚举转换为更直观的标题文字。
  */
 function strategyLabel(combo: SpreadCombo): string {
-  return combo.strategy === "BearCall" ? "Bear Call" : "Bull Put";
+  return combo.strategy === "BearCall"
+    ? "Sell Call Spread"
+    : "Sell Put Spread";
 }
 
 /**
