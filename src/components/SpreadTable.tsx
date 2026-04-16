@@ -276,6 +276,18 @@ export function SpreadTable({ combos, loading, coin }: Props) {
     }
   };
 
+  // 数字列保留单行以维持可读性，文本列允许换行来避免整表触发横向滚动。
+  const getCellClassName = (col: Column) =>
+    col.numeric
+      ? "text-right whitespace-normal break-all sm:whitespace-nowrap"
+      : "whitespace-normal break-words text-left";
+
+  // 表头按钮允许在窄屏换行，优先压缩标题而不是让容器出现横向滚动条。
+  const getHeaderButtonClassName = (col: Column, active: boolean) =>
+    `focus-ring inline-flex w-full min-w-0 items-start gap-1 cursor-pointer whitespace-normal break-words text-left leading-snug transition-colors ${
+      col.align === "right" ? "justify-end text-right" : ""
+    } ${active ? "text-fg" : "text-fg-dim hover:text-fg-muted"}`;
+
   // 表体统一在这里处理，避免骨架屏、空态和正常数据三套分支散落在 JSX 中。
   const renderBody = () => {
     if (loading && combos.length === 0) {
@@ -294,9 +306,9 @@ export function SpreadTable({ combos, loading, coin }: Props) {
         {COLUMNS.map((col) => (
           <td
             key={col.key}
-            className={`h-row whitespace-nowrap px-3 py-2 ${
-              col.align === "right" ? "text-right" : "text-left"
-            }`}
+            className={`h-row px-2 py-2 align-top text-xs leading-snug sm:px-3 sm:text-sm ${getCellClassName(
+              col,
+            )}`}
           >
             {col.render(c)}
           </td>
@@ -307,8 +319,8 @@ export function SpreadTable({ combos, loading, coin }: Props) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-border-subtle bg-bg-card">
-      <div className="max-h-[calc(100dvh-260px)] overflow-auto">
-        <table className="min-w-full text-sm">
+      <div className="max-h-[calc(100dvh-260px)] overflow-y-auto overflow-x-hidden">
+        <table className="w-full table-fixed text-sm">
           <thead className="sticky top-0 z-10 bg-bg-elevated/95 backdrop-blur-sm">
             <tr>
               {COLUMNS.map((col) => {
@@ -323,19 +335,19 @@ export function SpreadTable({ combos, loading, coin }: Props) {
                     key={col.key}
                     scope="col"
                     aria-sort={ariaSort as "ascending" | "descending" | "none"}
-                    className={`border-b border-border-subtle px-3 py-2.5 text-2xs font-medium ${
+                    className={`border-b border-border-subtle px-2 py-2.5 align-top text-2xs font-medium sm:px-3 ${
                       col.align === "right" ? "text-right" : "text-left"
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => onHeaderClick(col.key)}
-                      className={`focus-ring inline-flex items-center gap-1 cursor-pointer transition-colors ${
-                        col.align === "right" ? "flex-row-reverse" : ""
-                      } ${active ? "text-fg" : "text-fg-dim hover:text-fg-muted"}`}
+                      className={getHeaderButtonClassName(col, active)}
                     >
-                      <span>{col.label}</span>
-                      <SortIcon active={active} dir={sortDir} />
+                      <span className="whitespace-nowrap">{col.label}</span>
+                      <span className="shrink-0">
+                        <SortIcon active={active} dir={sortDir} />
+                      </span>
                     </button>
                     {col.sub ? (
                       <div

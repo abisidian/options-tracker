@@ -39,6 +39,24 @@ interface ExpiriesResponse {
   fetchedAt: number;
 }
 
+/**
+ * 根据页面展示口径挑选默认到期日：优先显示为 3d，没有则回退到 2d、1d，再没有才取最早到期。
+ */
+function pickDefaultExpiry(expiries: ExpiryInfo[]): ExpiryInfo | null {
+  if (expiries.length === 0) return null;
+
+  // 页面展示 DTE 时使用四舍五入，所以默认选择也按同一口径匹配 3 天 / 2 天 / 1 天。
+  const roundedDteTargets = [3, 2, 1];
+  for (const target of roundedDteTargets) {
+    const matched = expiries.find((expiry) => Math.round(expiry.daysToExpiry) === target);
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return expiries[0];
+}
+
 async function fetchExpiries(coin: Coin): Promise<ExpiriesResponse> {
   const res = await fetch(`/api/expiries?coin=${coin}`, { cache: "no-store" });
   if (!res.ok) {
@@ -92,10 +110,13 @@ export default function HomePage() {
     [coin],
   );
 
-  // Default to the nearest future expiry once data arrives.
+  // 默认优先选择显示为 3d 的到期日；没有则回退到 2d、1d，再没有才取最早到期。
   useEffect(() => {
     if (!expiry && expiriesState.data?.expiries?.length) {
-      setExpiry(expiriesState.data.expiries[0].label);
+      const defaultExpiry = pickDefaultExpiry(expiriesState.data.expiries);
+      if (defaultExpiry) {
+        setExpiry(defaultExpiry.label);
+      }
     }
   }, [expiriesState.data, expiry]);
 
@@ -141,7 +162,7 @@ export default function HomePage() {
   );
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col gap-5 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col gap-5 px-4 py-8 sm:px-6 lg:px-8">
       {/* Top bar */}
       <header className="flex flex-col gap-4">
         <div className="flex items-center justify-between">

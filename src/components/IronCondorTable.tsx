@@ -30,6 +30,7 @@ interface Column {
   label: string;
   sub?: string;
   align: "left" | "right";
+  numeric: boolean;
   value: (c: IronCondorCombo) => number | string;
   render: (c: IronCondorCombo) => React.ReactNode;
 }
@@ -52,6 +53,7 @@ const COLUMNS: Column[] = [
     label: "Put 买 K",
     sub: "K_pb",
     align: "right",
+    numeric: true,
     value: (c) => c.putBuyLeg.strike,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg-dim">
@@ -64,6 +66,7 @@ const COLUMNS: Column[] = [
     label: "Put 卖 K",
     sub: "K_ps",
     align: "right",
+    numeric: true,
     value: (c) => c.putSellLeg.strike,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg">
@@ -76,6 +79,7 @@ const COLUMNS: Column[] = [
     label: "Call 卖 K",
     sub: "K_cs",
     align: "right",
+    numeric: true,
     value: (c) => c.callSellLeg.strike,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg">
@@ -88,6 +92,7 @@ const COLUMNS: Column[] = [
     label: "Call 买 K",
     sub: "K_cb",
     align: "right",
+    numeric: true,
     value: (c) => c.callBuyLeg.strike,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg-dim">
@@ -100,6 +105,7 @@ const COLUMNS: Column[] = [
     label: "宽度",
     sub: "put / call",
     align: "right",
+    numeric: true,
     value: (c) => Math.max(c.putWidth, c.callWidth),
     render: (c) => (
       <span className="font-mono tabular-nums text-fg-dim">
@@ -112,6 +118,7 @@ const COLUMNS: Column[] = [
     label: "净权利金",
     sub: "USD",
     align: "right",
+    numeric: true,
     value: (c) => c.netCreditUsd,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg">
@@ -124,6 +131,7 @@ const COLUMNS: Column[] = [
     label: "最大盈利",
     sub: "扣费后",
     align: "right",
+    numeric: true,
     value: (c) => c.netMaxProfitUsd,
     render: (c) => (
       <span
@@ -139,6 +147,7 @@ const COLUMNS: Column[] = [
     label: "最大亏损",
     sub: "含手续费",
     align: "right",
+    numeric: true,
     value: (c) => c.netMaxLossUsd,
     render: (c) => (
       <span
@@ -154,6 +163,7 @@ const COLUMNS: Column[] = [
     label: "手续费",
     sub: "4 腿往返",
     align: "right",
+    numeric: true,
     value: (c) => c.feesUsd,
     render: (c) => (
       <span
@@ -169,6 +179,7 @@ const COLUMNS: Column[] = [
     label: "最大盈亏比",
     sub: "max / loss",
     align: "right",
+    numeric: true,
     value: (c) => c.netRiskReward,
     render: (c) => (
       <span
@@ -184,6 +195,7 @@ const COLUMNS: Column[] = [
     label: "平均盈亏比",
     sub: "avg / loss",
     align: "right",
+    numeric: true,
     value: (c) => avgRiskReward(c),
     render: (c) => (
       <span
@@ -199,6 +211,7 @@ const COLUMNS: Column[] = [
     label: "盈亏平衡区间",
     sub: "upper - lower",
     align: "right",
+    numeric: true,
     value: (c) => c.upperBreakEven - c.lowerBreakEven,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg-muted">
@@ -211,6 +224,7 @@ const COLUMNS: Column[] = [
     label: "平均盈利",
     sub: "区间均值",
     align: "right",
+    numeric: true,
     value: (c) => avgProfitUsd(c),
     render: (c) => (
       <span
@@ -226,6 +240,7 @@ const COLUMNS: Column[] = [
     label: "最大盈利区间",
     sub: "K_cs - K_ps",
     align: "right",
+    numeric: true,
     value: (c) => c.callSellLeg.strike - c.putSellLeg.strike,
     render: (c) => {
       const width = c.callSellLeg.strike - c.putSellLeg.strike;
@@ -243,6 +258,7 @@ const COLUMNS: Column[] = [
     key: "lowerBE",
     label: "下盈亏平衡",
     align: "right",
+    numeric: true,
     value: (c) => c.lowerBreakEven,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg-dim">
@@ -254,6 +270,7 @@ const COLUMNS: Column[] = [
     key: "upperBE",
     label: "上盈亏平衡",
     align: "right",
+    numeric: true,
     value: (c) => c.upperBreakEven,
     render: (c) => (
       <span className="font-mono tabular-nums text-fg-dim">
@@ -299,6 +316,18 @@ export function IronCondorTable({ combos, loading, coin }: Props) {
     }
   };
 
+  // 数字列保留单行，避免金额和价位被折断；表头改为允许换行，优先消化宽度压力。
+  const getCellClassName = (col: Column) =>
+    col.numeric
+      ? "text-right whitespace-normal break-all sm:whitespace-nowrap"
+      : "whitespace-normal break-words text-left";
+
+  // 表头按钮拉满单元格宽度，并允许文字换行，避免长标题把整表撑出横向滚动。
+  const getHeaderButtonClassName = (col: Column, active: boolean) =>
+    `focus-ring inline-flex w-full min-w-0 items-start gap-1 cursor-pointer whitespace-normal break-words text-left leading-snug transition-colors ${
+      col.align === "right" ? "justify-end text-right" : ""
+    } ${active ? "text-fg" : "text-fg-dim hover:text-fg-muted"}`;
+
   const renderBody = () => {
     if (loading && combos.length === 0) {
       return <SkeletonRows />;
@@ -316,9 +345,9 @@ export function IronCondorTable({ combos, loading, coin }: Props) {
         {COLUMNS.map((col) => (
           <td
             key={col.key}
-            className={`h-row whitespace-nowrap px-3 py-2 ${
-              col.align === "right" ? "text-right" : "text-left"
-            }`}
+            className={`h-row px-2 py-2 align-top text-xs leading-snug sm:px-3 sm:text-sm ${getCellClassName(
+              col,
+            )}`}
           >
             {col.render(c)}
           </td>
@@ -329,8 +358,8 @@ export function IronCondorTable({ combos, loading, coin }: Props) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-border-subtle bg-bg-card">
-      <div className="max-h-[520px] overflow-auto">
-        <table className="min-w-full text-sm">
+      <div className="max-h-[520px] overflow-y-auto overflow-x-hidden">
+        <table className="w-full table-fixed text-sm">
           <thead className="sticky top-0 z-10 bg-bg-elevated/95 backdrop-blur-sm">
             <tr>
               {COLUMNS.map((col) => {
@@ -347,19 +376,19 @@ export function IronCondorTable({ combos, loading, coin }: Props) {
                     aria-sort={
                       ariaSort as "ascending" | "descending" | "none"
                     }
-                    className={`border-b border-border-subtle px-3 py-2.5 text-2xs font-medium ${
+                    className={`border-b border-border-subtle px-2 py-2.5 align-top text-2xs font-medium sm:px-3 ${
                       col.align === "right" ? "text-right" : "text-left"
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => onHeaderClick(col.key)}
-                      className={`focus-ring inline-flex items-center gap-1 cursor-pointer transition-colors ${
-                        col.align === "right" ? "flex-row-reverse" : ""
-                      } ${active ? "text-fg" : "text-fg-dim hover:text-fg-muted"}`}
+                      className={getHeaderButtonClassName(col, active)}
                     >
-                      <span>{col.label}</span>
-                      <SortIcon active={active} dir={sortDir} />
+                      <span className="whitespace-nowrap">{col.label}</span>
+                      <span className="shrink-0">
+                        <SortIcon active={active} dir={sortDir} />
+                      </span>
                     </button>
                     {col.sub ? (
                       <div

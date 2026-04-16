@@ -1,5 +1,49 @@
 # TODO
 
+## 本次任务 - 默认 DTE 优先选择 3 天后
+
+- [x] 定位当前默认到期日的选择逻辑与 DTE 口径
+- [x] 调整默认选择规则为优先 3 天后，其次 2 天后
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 默认 DTE 优先选择 3 天后
+
+- 当前默认到期日选择逻辑位于 `src/app/page.tsx` 的 `HomePage`：原先 `useEffect` 在 `expiriesState.data.expiries` 到达后直接取 `expiries[0]` 作为默认值，因此总是选择最早到期
+- 当前 DTE 展示口径位于 `src/lib/format.ts` 的 `formatDays`：当 `days >= 1` 时使用 `Math.round(days)` 显示为 `Nd`，因此默认选择规则也按同一显示口径匹配 `3d` / `2d`
+- 已在 `src/app/page.tsx` 新增 `pickDefaultExpiry`，按顺序优先选择显示为 `3d` 的到期日；若不存在，则回退到显示为 `2d` 的到期日；若仍不存在，再回退到列表首项
+- `src/app/page.tsx` 的 `HomePage` 中默认选择到期日的 `useEffect` 已改为调用 `pickDefaultExpiry`，不再直接使用 `expiries[0]`
+- 验证命令 1：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+- 验证命令 2：使用 Node 从 `src/app/page.tsx` 抽取 `pickDefaultExpiry` 并执行 3 组样例，验证 `3d -> 2d -> 首项` 选择顺序，输出 `pickDefaultExpiry cases passed`
+
+## 本次任务 - 表格再加宽以容纳单行中文列名
+
+- [x] 确认当前限制列名单行展示的宽度来源
+- [x] 调整页面与表头宽度策略，让中文列名优先单行展示
+- [x] 验证构建与页面展示结果，并记录本次变更
+
+## Review - 表格再加宽以容纳单行中文列名
+
+- 限制列名单行展示的主要宽度来源位于 `src/app/page.tsx` 的 `HomePage`：页面主容器原先固定为 `max-w-7xl`，在桌面宽度下会提前封顶，导致表格可用横向空间不足
+- 另一个触发点位于 `src/components/SpreadTable.tsx` 的 `SpreadTable` 和 `src/components/IronCondorTable.tsx` 的 `IronCondorTable`：表头主标题在按钮内部允许换行，所以列宽稍紧时中文标题会优先折成两行
+- 已将 `src/app/page.tsx` 的主容器宽度放大为 `max-w-[1500px]`，让桌面端表格获得更多横向空间
+- 已将 `src/components/SpreadTable.tsx` 与 `src/components/IronCondorTable.tsx` 的表头主标题改为 `whitespace-nowrap`，并让排序图标固定不收缩，确保中文列名优先保持单行显示
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+- 浏览器验证：启动 `PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run dev -- -p 4102` 后，使用 Chrome 无头模式分别在 `1366x1400` 与 `1280x1400` 视口截图 `http://127.0.0.1:4102`，当前价差表中文列名保持单行显示，且未出现横向滚动条
+
+## 本次任务 - 表格宽度不足不再横向滚动
+
+- [x] 定位价差表与铁鹰表横向滚动的直接原因
+- [x] 调整表格列宽与换行策略，优先在当前容器宽度内展示
+- [x] 验证页面不再依赖横向滚动，并记录本次结果
+
+## Review - 表格宽度不足不再横向滚动
+
+- 横向滚动的直接原因位于 `src/components/SpreadTable.tsx` 的 `SpreadTable` 和 `src/components/IronCondorTable.tsx` 的 `IronCondorTable`：表格容器原先使用 `overflow-auto`，表体单元格统一使用 `whitespace-nowrap`，表头按钮也保持单行，导致列一多时只能通过横向滚动容纳内容
+- 已在 `src/components/SpreadTable.tsx` 的 `SpreadTable` 中新增 `getCellClassName` / `getHeaderButtonClassName`，并把表格改为 `w-full table-fixed`、容器改为 `overflow-y-auto overflow-x-hidden`，同时允许表头与非数值内容换行，在小宽度下允许数值按字符断开，优先在现有宽度内排布
+- 已在 `src/components/IronCondorTable.tsx` 的 `IronCondorTable` 中同步上述策略，并为 `Column` 增加 `numeric` 元数据，确保数值列和文本列可以分别应用不同的收缩规则
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+- 浏览器验证：启动 `PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run dev -- -p 4100` 后，使用 Chrome 无头模式分别在 `1440x1600` 和 `1100x1400` 视口截图 `http://127.0.0.1:4100`，当前价差表截图未出现横向滚动条，表格已在容器内收缩展示
+
 ## 本次任务 - 修复 Next.js `Origin not allowed`
 
 - [x] 定位 `Origin not allowed` 的触发来源与受影响访问入口
@@ -123,3 +167,56 @@
 - 配置验证 1：执行 `PATH=/opt/homebrew/bin:/usr/local/bin:$PATH node -e "const config=require('./ecosystem.config.cjs')..."` 成功，输出应用名 `options-tracker`、启动命令 `npm run start`、端口 `4000`
 - 配置验证 2：执行 `ruby -e "require 'yaml'; YAML.load_file('/Volumes/macos/Users/wangqichao/project/options-tracker/.github/workflows/deploy.yml')..."` 成功，读取到工作流名 `deploy-production`，步骤数为 `2`
 - 当前与本次任务直接相关的工作区改动为：`tasks/todo.md`、`.github/workflows/deploy.yml`、`ecosystem.config.cjs`
+
+## 本次任务 - 消除 BPS 策略标签歧义
+
+- [x] 确认当前 BPS 的实际策略定义与用户看到的缩写来源
+- [x] 调整价差表策略标签文案，明确这是卖价差信用策略
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 消除 BPS 策略标签歧义
+
+- `src/lib/spreads.ts` 的 `buildSpreadsForExpiry` 当前把 `BullPut` 明确定义为 `K_sell > K_buy` 的牛市看跌信用价差，具体枚举逻辑是升序遍历 Put 后取 `buy = puts[i]`、`sell = puts[j]`
+- 用户会产生歧义的直接来源位于 `src/components/SpreadTable.tsx` 的 `STRATEGY_META`：表格徽标原先仅显示 `BCS` / `BPS`，容易把 `Bull Put` 误读成 `Bear Put`
+- 已将 `src/components/SpreadTable.tsx` 的策略徽标改为 `熊涨卖` / `牛跌卖`，并为 tooltip 补充完整说明：`熊市看涨卖价差（卖低 K Call，买高 K Call）`、`牛市看跌卖价差（卖高 K Put，买低 K Put）`
+- 本次没有改动 `src/lib/spreads.ts` 的组合生成逻辑，只修正用户可见文案，避免把现有信用价差策略看成买价差
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
+## 本次任务 - 策略标签改为英文 Sell Spread 文案
+
+- [x] 按用户要求将策略标签从中文改为英文术语
+- [x] 同步更新 tooltip 文案，保持卖价差含义明确
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 策略标签改为英文 Sell Spread 文案
+
+- 已将 `src/components/SpreadTable.tsx` 的 `STRATEGY_META` 从中文标签改为 `Sell Call Spread` 和 `Sell Put Spread`
+- 同一位置的 tooltip 已同步更新为英文完整说明，分别明确 `sell lower-strike call, buy higher-strike call` 与 `sell higher-strike put, buy lower-strike put`
+- 本次仅修改用户可见文案，没有改动 `src/lib/spreads.ts` 的价差枚举与盈亏计算逻辑
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
+## 本次任务 - 同步更新策略切换 Tab 文案
+
+- [x] 调整策略切换 tab 的标签与提示文案
+- [x] 统一其它仍残留的可见策略名称
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 同步更新策略切换 Tab 文案
+
+- 已更新 `src/components/StrategyFilter.tsx` 的 `STRATEGY_MODES`：tab 标签从 `Bear Call` / `Bull Put` 改为 `Sell Call Spread` / `Sell Put Spread`，`All` 的提示文案也同步改为英文策略名
+- 已更新 `src/components/SpreadChart.tsx` 的 `strategyLabel`，保证图表标题与表格、tab 使用同一套英文策略术语
+- 通过 `rg -n "Bear Call|Bull Put" src/components src/app --glob '!node_modules'` 复查，当前 `src/components` 与 `src/app` 中已无残留的旧用户可见策略名称
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
+## 本次任务 - 默认到期日回退规则补全为 3/2/1
+
+- [x] 确认服务器未生效的真实原因与当前远端代码状态
+- [x] 调整默认到期日选择规则为优先 3d，再回退到 2d、1d
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 默认到期日回退规则补全为 3/2/1
+
+- 服务器未生效的直接原因不是时序，而是远端 `HEAD` 的 [src/app/page.tsx](/Volumes/macos/Users/wangqichao/project/options-tracker/src/app/page.tsx:107) 仍然使用 `setExpiry(expiriesState.data.expiries[0].label)`，也就是“永远取最早到期”；这一点通过 `git show HEAD:src/app/page.tsx` 已确认
+- 本地工作区中的 [src/app/page.tsx](/Volumes/macos/Users/wangqichao/project/options-tracker/src/app/page.tsx:42) 已补上 `pickDefaultExpiry`，并将优先级明确为 `Math.round(daysToExpiry) === 3`，再回退到 `2`、`1`，最后才取列表首项
+- 同文件的默认选择 `useEffect` 也已改为调用 `pickDefaultExpiry`，不再直接绑定 `expiries[0]`
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
