@@ -87,6 +87,17 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
     return nearest;
   }, [hoverX, curve, minPrice, maxPrice]);
 
+  // 固定渲染“鼠标处”统计项，避免 hover 时新增一行统计导致弹层高度抖动。
+  const hoverStat: { value: string; tone?: "profit" | "loss" } = hoverPoint
+    ? {
+        value: `${formatStrike(hoverPoint.price)} → ${hoverPoint.pnl >= 0 ? "+" : "-"}${formatUsd(Math.abs(hoverPoint.pnl))}`,
+        tone: hoverPoint.pnl >= 0 ? "profit" : "loss",
+      }
+    : {
+        value: "--",
+        tone: undefined,
+      };
+
   const verticalMarkers: Array<{ x: number; label: string; color: string }> = [
     { x: combo.putBuyLeg.strike, label: `K_pb ${formatStrike(combo.putBuyLeg.strike)}`, color: CHART_COLORS.strike },
     { x: combo.putSellLeg.strike, label: `K_ps ${formatStrike(combo.putSellLeg.strike)}`, color: CHART_COLORS.strikeSell },
@@ -278,13 +289,7 @@ export function IronCondorChart({ combo, coin, onClose }: Props) {
             />
             <Stat label="Put 宽度" value={formatStrike(combo.putWidth)} />
             <Stat label="Call 宽度" value={formatStrike(combo.callWidth)} />
-            {hoverPoint ? (
-              <Stat
-                label="鼠标处"
-                value={`${formatStrike(hoverPoint.price)} → ${hoverPoint.pnl >= 0 ? "+" : "-"}${formatUsd(Math.abs(hoverPoint.pnl))}`}
-                tone={hoverPoint.pnl >= 0 ? "profit" : "loss"}
-              />
-            ) : null}
+            <Stat label="鼠标处" value={hoverStat.value} tone={hoverStat.tone} />
           </div>
         </div>
       </div>

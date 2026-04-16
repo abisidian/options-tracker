@@ -101,6 +101,17 @@ export function SpreadChart({ combo, coin, onClose }: Props) {
     return nearest;
   }, [curve, hoverX, maxPrice, minPrice]);
 
+  // 固定渲染“鼠标处”统计项，避免 hover 前后增删节点导致弹层重新居中而跳动。
+  const hoverStat: { value: string; tone?: "profit" | "loss" } = hoverPoint
+    ? {
+        value: `${formatStrike(hoverPoint.price)} → ${hoverPoint.pnl >= 0 ? "+" : "-"}${formatUsd(Math.abs(hoverPoint.pnl))}`,
+        tone: hoverPoint.pnl >= 0 ? "profit" : "loss",
+      }
+    : {
+        value: "--",
+        tone: undefined,
+      };
+
   const verticalMarkers = [
     {
       x: combo.sellLeg.strike,
@@ -348,13 +359,7 @@ export function SpreadChart({ combo, coin, onClose }: Props) {
             <Stat label="盈亏平衡" value={formatStrike(combo.breakEven)} />
             <Stat label="最大盈利区" value={profitZoneLabel} tone="profit" />
             <Stat label="价差宽度" value={formatStrike(combo.width)} />
-            {hoverPoint ? (
-              <Stat
-                label="鼠标处"
-                value={`${formatStrike(hoverPoint.price)} → ${hoverPoint.pnl >= 0 ? "+" : "-"}${formatUsd(Math.abs(hoverPoint.pnl))}`}
-                tone={hoverPoint.pnl >= 0 ? "profit" : "loss"}
-              />
-            ) : null}
+            <Stat label="鼠标处" value={hoverStat.value} tone={hoverStat.tone} />
           </div>
         </div>
       </div>

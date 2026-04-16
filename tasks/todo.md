@@ -1,5 +1,17 @@
 # TODO
 
+## 本次任务 - 价差盈亏曲线 hover 不再跳动
+
+- [x] 确认弹层 hover 跳动的直接布局原因
+- [x] 调整价差曲线底部统计区，消除 hover 时的高度变化
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 价差盈亏曲线 hover 不再跳动
+
+- 直接原因位于 `src/components/SpreadChart.tsx` 的 `SpreadChart`：底部统计区原先只在 `hoverPoint` 存在时才渲染“鼠标处”这一项，导致统计格子数量从 8 个变 9 个，弹层高度变化后又因外层容器使用 `items-center` 重新居中，所以鼠标移入曲线区域时会出现整块上跳
+- 已在 `src/components/SpreadChart.tsx` 的 `SpreadChart` 中新增固定占位的 `hoverStat`，未 hover 时也始终渲染“鼠标处”统计项并显示 `--`，从而锁定价差曲线弹层的底部布局高度；同时在 `src/components/IronCondorChart.tsx` 的 `IronCondorChart` 同步相同处理，保持两种曲线交互一致
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
 ## 本次任务 - 默认 DTE 优先选择 3 天后
 
 - [x] 定位当前默认到期日的选择逻辑与 DTE 口径
@@ -219,4 +231,16 @@
 - 服务器未生效的直接原因不是时序，而是远端 `HEAD` 的 [src/app/page.tsx](/Volumes/macos/Users/wangqichao/project/options-tracker/src/app/page.tsx:107) 仍然使用 `setExpiry(expiriesState.data.expiries[0].label)`，也就是“永远取最早到期”；这一点通过 `git show HEAD:src/app/page.tsx` 已确认
 - 本地工作区中的 [src/app/page.tsx](/Volumes/macos/Users/wangqichao/project/options-tracker/src/app/page.tsx:42) 已补上 `pickDefaultExpiry`，并将优先级明确为 `Math.round(daysToExpiry) === 3`，再回退到 `2`、`1`，最后才取列表首项
 - 同文件的默认选择 `useEffect` 也已改为调用 `pickDefaultExpiry`，不再直接绑定 `expiries[0]`
+- 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功
+
+## 本次任务 - 修复相对时间未按秒更新
+
+- [x] 确认 `xx s前` 未跟随时间变化的直接原因
+- [x] 调整相对时间 hook 的刷新策略，让秒级文案按秒更新
+- [x] 验证构建结果，并记录本次变更
+
+## Review - 修复相对时间未按秒更新
+
+- 直接原因位于 [src/hooks/useRelativeTime.ts](/Volumes/macos/Users/wangqichao/project/options-tracker/src/hooks/useRelativeTime.ts:10) 的 `useRelativeTime`：默认刷新间隔原先固定为 `10_000` 毫秒，所以页面上的 `xx s前` 最多每 10 秒才会跳一次，看起来像“没有跟着时间变动”
+- 已将同一函数的默认刷新间隔调整为 `1_000` 毫秒，并补充中文注释说明秒级文案需要按秒触发重渲染
 - 验证命令：`PATH=/opt/homebrew/bin:/usr/local/bin:$PATH npm run build`，结果通过，Next.js 编译、lint、类型检查和静态页面生成均成功

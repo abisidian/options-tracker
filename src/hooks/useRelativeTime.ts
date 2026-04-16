@@ -4,17 +4,18 @@ import { useEffect, useState } from "react";
 import { formatRelative } from "@/lib/format";
 
 /**
- * Returns a live-updating relative time string (e.g. "12s 前", "3m 前").
- * Re-renders every `intervalMs` (default 10s) to keep it fresh.
+ * 返回一个会持续刷新的相对时间文案，例如“12s 前”“3m 前”。
+ * 默认按 1 秒刷新，保证秒级文案能跟着时间推进。
  */
 export function useRelativeTime(
   timestamp: number | null,
-  intervalMs = 10_000,
+  intervalMs = 1_000,
 ): string {
   const [, tick] = useState(0);
 
   useEffect(() => {
     if (!timestamp) return;
+    // 相对时间包含秒级展示时，需要按秒触发重渲染，否则“xx s前”会停在旧值上。
     const id = window.setInterval(() => tick((n) => n + 1), intervalMs);
     return () => window.clearInterval(id);
   }, [timestamp, intervalMs]);
